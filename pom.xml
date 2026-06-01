@@ -28,26 +28,114 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<spring-grpc.version>1.0.3</spring-grpc.version>
 	</properties>
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.grpc</groupId>
+				<artifactId>spring-grpc-dependencies</artifactId>
+				<version>${spring-grpc.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter</artifactId>
 		</dependency>
-
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.grpc</groupId>
+			<artifactId>grpc-stub</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.grpc</groupId>
+			<artifactId>grpc-protobuf</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>javax.annotation</groupId>
+			<artifactId>javax.annotation-api</artifactId>
+			<version>1.3.2</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.grpc</groupId>
+			<artifactId>spring-grpc-client-spring-boot-starter</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-amqp</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.modelmapper</groupId>
+			<artifactId>modelmapper</artifactId>
+			<version>3.0.0</version>
+		</dependency>
 	</dependencies>
 
 	<build>
+
+		<extensions>
+			<extension>
+				<groupId>kr.motd.maven</groupId>
+				<artifactId>os-maven-plugin</artifactId>
+				<version>1.7.1</version>
+			</extension>
+		</extensions>
+
 		<plugins>
+
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+
+			<plugin>
+				<groupId>org.xolstice.maven.plugins</groupId>
+				<artifactId>protobuf-maven-plugin</artifactId>
+				<version>0.6.1</version>
+
+				<configuration>
+					<protocArtifact>
+						com.google.protobuf:protoc:3.25.3:exe:${os.detected.classifier}
+					</protocArtifact>
+
+					<pluginId>grpc-java</pluginId>
+
+					<pluginArtifact>
+						io.grpc:protoc-gen-grpc-java:1.64.0:exe:${os.detected.classifier}
+					</pluginArtifact>
+				</configuration>
+
+				<executions>
+					<execution>
+						<goals>
+							<goal>compile</goal>
+							<goal>compile-custom</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
 		</plugins>
 	</build>
 

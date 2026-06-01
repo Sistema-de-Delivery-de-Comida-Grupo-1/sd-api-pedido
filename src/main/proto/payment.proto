@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package pagamento;
+
+option java_package = "ifg.urutai.sdapipagamento.grpc";
+option java_outer_classname = "PagamentoProto";
+option java_multiple_files = true;
+
+// ──────────────────────────────────────────────
+// Serviço principal
+// ──────────────────────────────────────────────
+service ServicoPagamento {
+  // Processa um pagamento e aumenta o saldo da empresa
+  rpc ProcessarPagamento(RequisicaoPagamento) returns (RespostaPagamento);
+
+  // Realiza o estorno de uma transação e subtrai do saldo
+  rpc EstornarPagamento(RequisicaoEstorno) returns (RespostaEstorno);
+
+  // Retorna o saldo atual e balanços informativos da empresa
+  rpc ConsultarSaldo(RequisicaoSaldo) returns (RespostaSaldo);
+
+  // Lista todas as transações
+  rpc ListarTransacoes(RequisicaoListaTransacoes) returns (RespostaListaTransacoes);
+}
+
+// ──────────────────────────────────────────────
+// ProcessarPagamento
+// ──────────────────────────────────────────────
+message RequisicaoPagamento {
+  string nome_usuario   = 1;
+  string email          = 2;
+  double valor          = 3;
+  string forma_pagamento = 4;  // ex: CARTAO_CREDITO, CARTAO_DEBITO, PIX, BOLETO
+}
+
+message RespostaPagamento {
+  string id_transacao    = 1;
+  string status          = 2;  // SUCESSO | FALHA
+  double saldo_empresa   = 3;
+  string mensagem        = 4;
+  string criado_em       = 5;
+}
+
+// ──────────────────────────────────────────────
+// EstornarPagamento
+// ──────────────────────────────────────────────
+message RequisicaoEstorno {
+  string id_transacao = 1;
+  string motivo       = 2;
+}
+
+message RespostaEstorno {
+  string id_transacao    = 1;
+  string status          = 2;  // ESTORNADO | FALHA
+  double valor_estornado = 3;
+  double saldo_empresa   = 4;
+  string mensagem        = 5;
+  string estornado_em    = 6;
+}
+
+// ──────────────────────────────────────────────
+// ConsultarSaldo
+// ──────────────────────────────────────────────
+message RequisicaoSaldo {}
+
+message RespostaSaldo {
+  double saldo_atual       = 1;  // saldo atual da empresa
+  double total_recebido    = 2;  // total recebido (histórico)
+  double total_estornado   = 3;  // total estornado (histórico)
+  int64  total_transacoes  = 4;  // quantidade total de transações
+  int64  total_estornos    = 5;  // quantidade total de estornos
+}
+
+// ──────────────────────────────────────────────
+// ListarTransacoes
+// ──────────────────────────────────────────────
+message RequisicaoListaTransacoes {
+  int32 pagina  = 1;
+  int32 tamanho = 2;
+}
+
+message RegistroTransacao {
+  string id_transacao    = 1;
+  string nome_usuario    = 2;
+  string email           = 3;
+  double valor           = 4;
+  string forma_pagamento = 5;
+  string status          = 6;  // CONCLUIDA | ESTORNADA
+  string criado_em       = 7;
+  string estornado_em    = 8;
+  string motivo_estorno  = 9;
+}
+
+message RespostaListaTransacoes {
+  repeated RegistroTransacao transacoes = 1;
+  int64 total_elementos                 = 2;
+}
