@@ -13,7 +13,7 @@ public class GrpcConfig {
     @Bean
     public ManagedChannel pagamentoChannel() {
         return ManagedChannelBuilder
-                .forAddress("localhost", 5689)
+                .forAddress("localhost", 8086)
                 .usePlaintext()
                 .build();
     }
