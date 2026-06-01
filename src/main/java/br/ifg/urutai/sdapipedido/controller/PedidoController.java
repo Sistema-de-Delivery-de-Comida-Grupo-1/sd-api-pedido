@@ -46,13 +46,6 @@ public class PedidoController {
         );
     }
 
-    @PostMapping("/{id}/sair-para-entrega")
-    public ResponseEntity<PedidoResponseDTO> sairParaEntrega(@PathVariable Long id) {
-        return ResponseEntity.ok(
-                pedidoService.sairParaEntrega(id)
-        );
-    }
-
     @GetMapping("/{id}")
     public ResponseEntity<Pedido> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(

@@ -37,9 +37,7 @@ public class PedidoService {
         pedido.setStatus(StatusPedido.AGUARDANDO_PAGAMENTO);
 
         if (pedido.getItens() != null) {
-            pedido.getItens().forEach(item -> {
-                item.setPedido(pedido);
-            });
+            pedido.getItens().forEach(item -> item.setPedido(pedido));
         }
 
         return DataMapper.parseObject(pedidoRepository.save(pedido), PedidoResponseDTO.class);
@@ -65,9 +63,7 @@ public class PedidoService {
         if (pedido.getItens() != null &&
                 !pedido.getItens().equals(pedidoNovo.getItens())) {
 
-            pedido.getItens().forEach(item -> {
-                item.setPedido(pedidoNovo);
-            });
+            pedido.getItens().forEach(item -> item.setPedido(pedidoNovo));
 
             pedidoNovo.setItens(pedido.getItens());
         }
@@ -138,20 +134,6 @@ public class PedidoService {
         }
 
         pedido.setStatus(StatusPedido.PRONTO_PARA_ENTREGA);
-
-        return DataMapper.parseObject(pedidoRepository.save(pedido), PedidoResponseDTO.class);
-    }
-
-    public PedidoResponseDTO sairParaEntrega(Long id) {
-
-        Pedido pedido = buscarPorId(id);
-
-        if (pedido.getStatus() != StatusPedido.PRONTO_PARA_ENTREGA) {
-            throw new RuntimeException(
-                    "Pedido não está pronto para entrega");
-        }
-
-        pedido.setStatus(StatusPedido.SAIU_PARA_ENTREGA);
 
         Pedido pedidoSalvo = pedidoRepository.save(pedido);
 
