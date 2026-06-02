@@ -2,11 +2,13 @@ package br.ifg.urutai.sdapipedido.model;
 
 import br.ifg.urutai.sdapipedido.StatusPedido;
 import jakarta.persistence.*;
+
+import java.io.Serializable;
 import java.util.List;
 
 @Entity
 @Table(name = "pedidos")
-public class Pedido {
+public class Pedido implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
