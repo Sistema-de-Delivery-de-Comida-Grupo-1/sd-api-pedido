@@ -27,9 +27,9 @@ service ServicoPagamento {
 // ProcessarPagamento
 // ──────────────────────────────────────────────
 message RequisicaoPagamento {
-  string nome_usuario   = 1;
-  string email          = 2;
-  double valor          = 3;
+  string id_usuario      = 1;
+  string id_pedido       = 2;
+  double valor           = 3;
   string forma_pagamento = 4;  // ex: CARTAO_CREDITO, CARTAO_DEBITO, PIX, BOLETO
 }
 
@@ -45,8 +45,8 @@ message RespostaPagamento {
 // EstornarPagamento
 // ──────────────────────────────────────────────
 message RequisicaoEstorno {
-  string id_transacao = 1;
-  string motivo       = 2;
+  string id_pedido = 1;
+  string motivo    = 2;
 }
 
 message RespostaEstorno {
@@ -81,11 +81,11 @@ message RequisicaoListaTransacoes {
 
 message RegistroTransacao {
   string id_transacao    = 1;
-  string nome_usuario    = 2;
-  string email           = 3;
+  string id_usuario      = 2;
+  string id_pedido       = 3;
   double valor           = 4;
   string forma_pagamento = 5;
-  string status          = 6;  // CONCLUIDA | ESTORNADA
+  string status          = 6;  // CONCLUIDA  ESTORNADA
   string criado_em       = 7;
   string estornado_em    = 8;
   string motivo_estorno  = 9;
