@@ -90,8 +90,8 @@ public class PedidoService {
 
         RequisicaoPagamento requisicao =
                 RequisicaoPagamento.newBuilder()
-                        .setNomeUsuario("Cliente " + pedido.getIdCliente())
-                        .setEmail("cliente@email.com")
+                        .setIdUsuario(String.valueOf(pedido.getIdCliente()))
+                        .setIdPedido(String.valueOf(pedido.getId()))
                         .setValor(pedido.getValorTotal())
                         .setFormaPagamento("PIX")
                         .build();
