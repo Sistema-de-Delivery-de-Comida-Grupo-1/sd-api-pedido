@@ -1,12 +1,12 @@
 package br.ifg.urutai.sdapipedido.dto;
 
-import br.ifg.urutai.sdapipedido.StatusPedido;
+import br.ifg.urutai.sdapipedido.model.StatusPedido;
 import java.util.List;
 
 public class PedidoResponseDTO {
     private Long id;
     private Long idCliente;
-    private int valorTotal;
+    private double valorTotal;
     private List<ItemPedidoResumeDTO> itens;
     private StatusPedido status;
 
@@ -29,11 +29,11 @@ public class PedidoResponseDTO {
         this.idCliente = idCliente;
     }
 
-    public int getValorTotal() {
+    public double getValorTotal() {
         return valorTotal;
     }
 
-    public void setValorTotal(int valorTotal) {
+    public void setValorTotal(double valorTotal) {
         this.valorTotal = valorTotal;
     }
 

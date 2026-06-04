@@ -1,6 +1,5 @@
 package br.ifg.urutai.sdapipedido.model;
 
-import br.ifg.urutai.sdapipedido.StatusPedido;
 import jakarta.persistence.*;
 
 import java.io.Serializable;
@@ -13,7 +12,7 @@ public class Pedido implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private Long idCliente;
-    private int valorTotal;
+    private double valorTotal;
     @OneToMany(
             mappedBy = "pedido",
             cascade = CascadeType.ALL,
@@ -42,11 +41,11 @@ public class Pedido implements Serializable {
         this.idCliente = idCliente;
     }
 
-    public int getValorTotal() {
+    public double getValorTotal() {
         return valorTotal;
     }
 
-    public void setValorTotal(int valorTotal) {
+    public void setValorTotal(double valorTotal) {
         this.valorTotal = valorTotal;
     }
 

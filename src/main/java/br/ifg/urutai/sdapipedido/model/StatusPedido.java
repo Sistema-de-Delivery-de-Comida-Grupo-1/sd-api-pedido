@@ -1,4 +1,4 @@
-package br.ifg.urutai.sdapipedido;
+package br.ifg.urutai.sdapipedido.model;
 
 public enum StatusPedido {
     AGUARDANDO_PAGAMENTO,
