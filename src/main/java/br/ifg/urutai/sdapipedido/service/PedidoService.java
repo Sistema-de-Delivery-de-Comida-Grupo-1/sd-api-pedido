@@ -12,6 +12,7 @@ import ifg.urutai.sdapipagamento.grpc.ServicoPagamentoGrpc;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -23,13 +24,15 @@ public class PedidoService {
 
     private final ServicoPagamentoGrpc.ServicoPagamentoBlockingStub stubPagamento;
     private final RabbitTemplate rabbitTemplate;
+    private final StreamBridge streamBridge;
     private final String queueName;
     private final PedidoRepository pedidoRepository;
 
     @Autowired
-    public PedidoService(ServicoPagamentoGrpc.ServicoPagamentoBlockingStub stubPagamento, RabbitTemplate rabbitTemplate, @Value("${app.queue-name}") String queueName, PedidoRepository pedidoRepository) {
+    public PedidoService(ServicoPagamentoGrpc.ServicoPagamentoBlockingStub stubPagamento, RabbitTemplate rabbitTemplate, StreamBridge streamBridge, @Value("${app.queue-name}") String queueName, PedidoRepository pedidoRepository) {
         this.stubPagamento = stubPagamento;
         this.rabbitTemplate = rabbitTemplate;
+        this.streamBridge = streamBridge;
         this.queueName = queueName;
         this.pedidoRepository = pedidoRepository;
     }
@@ -53,7 +56,9 @@ public class PedidoService {
 
         pedido.getItens().forEach(item -> item.setPedido(pedido));
 
-        return DataMapper.parseObject(pedidoRepository.save(pedido), PedidoResponseDTO.class);
+        PedidoResponseDTO pedidoSalvo = DataMapper.parseObject(pedidoRepository.save(pedido), PedidoResponseDTO.class);
+        streamBridge.send("sd-api-pedido", pedidoSalvo);
+        return pedidoSalvo;
     }
 
     public PedidoResponseDTO atualizar(Long id, PedidoCreteDTO pedidoDTO) {
@@ -80,7 +85,9 @@ public class PedidoService {
             pedidoBanco.setValorTotal(valorTotal);
         }
 
-        return DataMapper.parseObject(pedidoRepository.save(pedidoBanco), PedidoResponseDTO.class);
+        PedidoResponseDTO pedidoSalvo = DataMapper.parseObject(pedidoRepository.save(pedidoBanco), PedidoResponseDTO.class);
+        streamBridge.send("sd-api-pedido", pedidoSalvo);
+        return pedidoSalvo;
     }
 
     public PedidoResponseDTO pagarPedido(Long id) {
@@ -115,7 +122,9 @@ public class PedidoService {
             pedido.setStatus(StatusPedido.PAGAMENTO_RECUSADO);
         }
 
-        return DataMapper.parseObject(pedidoRepository.save(pedido), PedidoResponseDTO.class);
+        PedidoResponseDTO pedidoSalvo = DataMapper.parseObject(pedidoRepository.save(pedido), PedidoResponseDTO.class);
+        streamBridge.send("sd-api-pedido", pedidoSalvo);
+        return pedidoSalvo;
     }
 
     public PedidoResponseDTO iniciarPreparo(Long id) {
@@ -128,7 +137,9 @@ public class PedidoService {
 
         pedido.setStatus(StatusPedido.EM_PREPARO);
 
-        return DataMapper.parseObject(pedidoRepository.save(pedido), PedidoResponseDTO.class);
+        PedidoResponseDTO pedidoSalvo = DataMapper.parseObject(pedidoRepository.save(pedido), PedidoResponseDTO.class);
+        streamBridge.send("sd-api-pedido", pedidoSalvo);
+        return pedidoSalvo;
     }
 
     public PedidoResponseDTO finalizarPreparo(Long id) {
@@ -141,11 +152,12 @@ public class PedidoService {
 
         pedido.setStatus(StatusPedido.PRONTO_PARA_ENTREGA);
 
-        Pedido pedidoSalvo = pedidoRepository.save(pedido);
+        PedidoResponseDTO pedidoSalvo = DataMapper.parseObject(pedidoRepository.save(pedido), PedidoResponseDTO.class);
 
+
+
+        streamBridge.send("sd-api-pedido", pedidoSalvo);
         rabbitTemplate.convertAndSend(queueName, pedidoSalvo);
-
-        System.out.println("Mensagem enviada: Pedido " + pedidoSalvo.getId());
 
         return DataMapper.parseObject(pedidoSalvo, PedidoResponseDTO.class);
     }

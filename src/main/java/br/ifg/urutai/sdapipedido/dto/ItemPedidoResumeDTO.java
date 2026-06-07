@@ -1,6 +1,8 @@
 package br.ifg.urutai.sdapipedido.dto;
 
-public class ItemPedidoResumeDTO {
+import java.io.Serializable;
+
+public class ItemPedidoResumeDTO implements Serializable {
     private Long id;
     private int quantidade;
     private double preco;
