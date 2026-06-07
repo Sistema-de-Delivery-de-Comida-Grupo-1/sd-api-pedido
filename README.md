@@ -1,49 +1,43 @@
-# SD-API-PEDIDO
+# SD API PEDIDO
 
-## Descrição
+## Visão Geral
 
-O **SD-API-PEDIDO** é um microsserviço responsável pelo gerenciamento de pedidos em um sistema de delivery distribuído.
+O **SD API Pedido** é um microsserviço responsável pelo gerenciamento do ciclo de vida dos pedidos em uma arquitetura distribuída de delivery.
 
-Este serviço permite:
+O serviço é responsável por:
 
 * Criar pedidos.
-* Consultar pedidos.
 * Atualizar pedidos.
+* Consultar pedidos.
 * Remover pedidos.
-* Processar pagamentos via gRPC.
+* Solicitar processamento de pagamento via gRPC.
 * Controlar o fluxo de estados do pedido.
-* Publicar pedidos prontos para entrega em uma fila RabbitMQ.
-* Registrar-se no Eureka Server para descoberta de serviços.
+* Publicar eventos para outros microsserviços através do RabbitMQ utilizando Spring Cloud Stream.
+* Enviar pedidos prontos para entrega para uma fila RabbitMQ.
+* Registrar-se automaticamente no servidor Eureka para descoberta de serviços.
 
 ---
 
 # Arquitetura
 
-O microsserviço foi desenvolvido utilizando:
-
-* Java
-* Spring Boot
-* Spring Data JPA
-* Banco de dados H2
-* RabbitMQ
-* gRPC
-* Eureka Client
-
-Fluxo simplificado:
+O microsserviço segue a arquitetura em camadas:
 
 ```text
-Cliente
-   |
-   v
-API Pedido
-   |
-   +--> Banco H2
-   |
-   +--> Serviço de Pagamento (gRPC)
-   |
-   +--> RabbitMQ
-   |
-   +--> Eureka Server
+Controller
+    ↓
+Service
+    ↓
+Repository
+    ↓
+Banco de Dados (H2)
+
+Service
+    ↓
+gRPC (API Pagamento)
+
+Service
+    ↓
+RabbitMQ
 ```
 
 ---
@@ -54,6 +48,7 @@ API Pedido
 
 ```properties
 spring.application.name=sd-api-pedido
+
 server.port=8084
 
 eureka.client.service-url.defaultZone=http://localhost:8761/eureka/
@@ -75,290 +70,17 @@ spring.rabbitmq.username=guest
 spring.rabbitmq.password=guest
 
 app.queue-name=queue.pedido-entrega
+
+spring.cloud.stream.default-binder=rabbit
+spring.cloud.stream.bindings.sd-api-pedido.destination=event-notificacao
+spring.cloud.stream.bindings.sd-api-pedido.content-type=application/json
 ```
-
----
-
-# Modelo de Dados
-
-## Pedido
-
-```json
-{
-  "id": 1,
-  "idCliente": 10,
-  "valorTotal": 55.0,
-  "status": "AGUARDANDO_PAGAMENTO",
-  "itens": []
-}
-```
-
-## ItemPedido
-
-```json
-{
-  "id": 1,
-  "quantidade": 2,
-  "preco": 25.0,
-  "descricao": "Pizza Calabresa"
-}
-```
-
----
-
-# Estados do Pedido
-
-O pedido pode assumir os seguintes estados:
-
-| Status               |
-| -------------------- |
-| AGUARDANDO_PAGAMENTO |
-| PAGAMENTO_APROVADO   |
-| PAGAMENTO_RECUSADO   |
-| EM_PREPARO           |
-| PRONTO_PARA_ENTREGA  |
-| SAIU_PARA_ENTREGA    |
-| ENTREGUE             |
-| CANCELADO            |
-
----
-
-# Endpoints
-
-## Criar Pedido
-
-### POST /pedidos
-
-### Requisição
-
-```json
-{
-  "idCliente": 1,
-  "itens": [
-    {
-      "quantidade": 2,
-      "preco": 25.0,
-      "descricao": "Pizza Calabresa"
-    },
-    {
-      "quantidade": 1,
-      "preco": 5.0,
-      "descricao": "Refrigerante"
-    }
-  ]
-}
-```
-
-### Resposta
-
-```json
-{
-  "id": 1,
-  "idCliente": 1,
-  "valorTotal": 55.0,
-  "status": "AGUARDANDO_PAGAMENTO",
-  "itens": [
-    {
-      "id": 1,
-      "quantidade": 2,
-      "preco": 25.0,
-      "descricao": "Pizza Calabresa"
-    },
-    {
-      "id": 2,
-      "quantidade": 1,
-      "preco": 5.0,
-      "descricao": "Refrigerante"
-    }
-  ]
-}
-```
-
----
-
-## Buscar Pedido por ID
-
-### GET /pedidos/{id}
-
-### Exemplo
-
-```http
-GET /pedidos/1
-```
-
----
-
-## Listar Todos os Pedidos
-
-### GET /pedidos
-
-### Exemplo
-
-```http
-GET /pedidos
-```
-
----
-
-## Atualizar Pedido
-
-### PUT /pedidos/{id}
-
-### Requisição
-
-```json
-{
-  "idCliente": 1,
-  "itens": [
-    {
-      "quantidade": 3,
-      "preco": 25.0,
-      "descricao": "Pizza Calabresa"
-    }
-  ]
-}
-```
-
----
-
-## Remover Pedido
-
-### DELETE /pedidos/{id}
-
-### Exemplo
-
-```http
-DELETE /pedidos/1
-```
-
----
-
-# Pagamento
-
-## Processar Pagamento
-
-### PUT /pedidos/{id}/pagar
-
-Este endpoint envia uma requisição para o microsserviço de pagamento utilizando gRPC.
-
-### Exemplo
-
-```http
-PUT /pedidos/1/pagar
-```
-
-### Possíveis Resultados
-
-#### Pagamento aprovado
-
-```json
-{
-  "status": "PAGAMENTO_APROVADO"
-}
-```
-
-#### Pagamento recusado
-
-```json
-{
-  "status": "PAGAMENTO_RECUSADO"
-}
-```
-
----
-
-# Preparo do Pedido
-
-## Iniciar Preparo
-
-### PUT /pedidos/{id}/iniciar-preparo
-
-Somente pedidos com status:
-
-```text
-PAGAMENTO_APROVADO
-```
-
-podem entrar em preparo.
-
-### Exemplo
-
-```http
-PUT /pedidos/1/iniciar-preparo
-```
-
----
-
-## Finalizar Preparo
-
-### PUT /pedidos/{id}/finalizar-preparo
-
-Somente pedidos em preparo podem ser finalizados.
-
-### Exemplo
-
-```http
-PUT /pedidos/1/finalizar-preparo
-```
-
-Ao finalizar o preparo:
-
-1. O status é alterado para:
-
-```text
-PRONTO_PARA_ENTREGA
-```
-
-2. O pedido é publicado na fila RabbitMQ:
-
-```text
-queue.pedido-entrega
-```
-
----
-
-# Integração gRPC
-
-O serviço utiliza um cliente gRPC para comunicação com o microsserviço de pagamento.
-
-Método utilizado:
-
-```text
-processarPagamento()
-```
-
-Informações enviadas:
-
-```json
-{
-  "idUsuario": "1",
-  "idPedido": "10",
-  "valor": 55.0,
-  "formaPagamento": "PIX"
-}
-```
-
----
-
-# Integração RabbitMQ
-
-Fila utilizada:
-
-```text
-queue.pedido-entrega
-```
-
-Quando um pedido é finalizado, ele é enviado para esta fila para que o microsserviço de entrega possa consumi-lo.
 
 ---
 
 # Banco de Dados
 
-Banco utilizado:
-
-```text
-H2 Database
-```
+O projeto utiliza banco H2 em memória.
 
 Console disponível em:
 
@@ -366,27 +88,355 @@ Console disponível em:
 http://localhost:8084/h2-console
 ```
 
-Configurações:
+---
+
+# Modelo de Domínio
+
+## Pedido
+
+Representa um pedido realizado por um cliente.
+
+### Atributos
+
+| Campo      | Tipo             |
+| ---------- | ---------------- |
+| id         | Long             |
+| idCliente  | Long             |
+| valorTotal | double           |
+| status     | StatusPedido     |
+| itens      | List<ItemPedido> |
+
+### Relacionamentos
 
 ```text
-JDBC URL: jdbc:h2:mem:pedidodb
-User: sa
-Password:
+Pedido
+   |
+   | 1:N
+   |
+ItemPedido
 ```
 
 ---
 
-# Registro no Eureka
+## ItemPedido
 
-Ao iniciar a aplicação, ela se registra automaticamente no Eureka Server.
+Representa um item pertencente a um pedido.
+
+### Atributos
+
+| Campo      | Tipo   |
+| ---------- | ------ |
+| id         | Long   |
+| quantidade | int    |
+| preco      | double |
+| descricao  | String |
+
+---
+
+# Estados do Pedido
+
+O pedido segue o seguinte fluxo:
+
+```text
+AGUARDANDO_PAGAMENTO
+          ↓
+PAGAMENTO_APROVADO
+          ↓
+EM_PREPARO
+          ↓
+PRONTO_PARA_ENTREGA
+```
+
+Fluxos alternativos:
+
+```text
+AGUARDANDO_PAGAMENTO
+          ↓
+PAGAMENTO_RECUSADO
+```
+
+ou
+
+```text
+CANCELADO
+```
+
+Estados disponíveis:
+
+* AGUARDANDO_PAGAMENTO
+* PAGAMENTO_APROVADO
+* PAGAMENTO_RECUSADO
+* EM_PREPARO
+* PRONTO_PARA_ENTREGA
+* SAIU_PARA_ENTREGA
+* ENTREGUE
+* CANCELADO
+
+---
+
+# DTOs
+
+DTOs são utilizados para separar a camada de API da camada de persistência.
+
+---
+
+## PedidoCreateDTO
+
+Utilizado na criação e atualização de pedidos.
+
+```json
+{
+  "idCliente": 1,
+  "itens": [
+    {
+      "quantidade": 2,
+      "preco": 20.0,
+      "descricao": "Pizza"
+    }
+  ]
+}
+```
+
+---
+
+## PedidoResponseDTO
+
+Retornado pelas operações da API.
+
+```json
+{
+  "id": 1,
+  "idCliente": 1,
+  "valorTotal": 40.0,
+  "status": "AGUARDANDO_PAGAMENTO",
+  "itens": [
+    {
+      "id": 1,
+      "quantidade": 2,
+      "preco": 20.0,
+      "descricao": "Pizza"
+    }
+  ]
+}
+```
+
+---
+
+# Repository
+
+## PedidoRepository
+
+Responsável pelo acesso aos dados da entidade Pedido.
+
+```java
+public interface PedidoRepository
+        extends JpaRepository<Pedido, Long> {
+}
+```
+
+---
+
+## ItemPedidoRepository
+
+Responsável pelo acesso aos dados da entidade ItemPedido.
+
+```java
+public interface ItemPedidoRepository
+        extends JpaRepository<ItemPedido, Long> {
+}
+```
+
+---
+
+# Service
+
+A camada Service contém toda a regra de negócio da aplicação.
+
+## criarPedido()
+
+Responsabilidades:
+
+* Validar itens.
+* Calcular valor total.
+* Definir status inicial.
+* Persistir pedido.
+* Publicar evento RabbitMQ.
+
+---
+
+## atualizar()
+
+Responsabilidades:
+
+* Atualizar cliente.
+* Atualizar itens.
+* Recalcular valor total.
+* Publicar evento.
+
+---
+
+## pagarPedido()
+
+Responsabilidades:
+
+* Validar pedido.
+* Chamar API de pagamento via gRPC.
+* Atualizar status.
+* Publicar evento.
+
+Fluxo:
+
+```text
+Pedido Service
+       ↓
+gRPC
+       ↓
+API Pagamento
+       ↓
+Resposta
+       ↓
+Atualização Status
+```
+
+---
+
+## iniciarPreparo()
+
+Permite que um pedido pago seja colocado em preparo.
+
+Validação:
+
+```text
+PAGAMENTO_APROVADO
+```
+
+---
+
+## finalizarPreparo()
+
+Permite finalizar o preparo.
+
+Validação:
+
+```text
+EM_PREPARO
+```
+
+Após finalizar:
+
+* Atualiza status.
+* Publica evento.
+* Envia pedido para fila de entrega.
+
+---
+
+## buscarPorId()
+
+Consulta pedido pelo identificador.
+
+---
+
+## buscarTodos()
+
+Lista todos os pedidos.
+
+---
+
+## remover()
+
+Remove um pedido existente.
+
+---
+
+# Comunicação gRPC
+
+O microsserviço integra-se ao serviço de pagamento.
+
+## Configuração
+
+```java
+ManagedChannelBuilder
+    .forAddress("localhost", 8086)
+```
+
+### Requisição
+
+```text
+idUsuario
+idPedido
+valor
+formaPagamento
+```
+
+### Resposta
+
+```text
+SUCESSO
+ou
+ERRO
+```
+
+---
+
+# Comunicação RabbitMQ
+
+O sistema utiliza duas formas de comunicação assíncrona.
+
+---
+
+## Spring Cloud Stream
+
+Destino:
+
+```text
+event-notificacao
+```
+
+Todos os eventos do pedido são publicados neste tópico.
+
+Eventos publicados:
+
+* Pedido criado.
+* Pedido atualizado.
+* Pedido pago.
+* Pedido em preparo.
+* Pedido pronto para entrega.
+
+---
+
+## Fila de Entrega
+
+Fila:
+
+```text
+queue.pedido-entrega
+```
+
+Quando um pedido é finalizado:
+
+```text
+Pedido
+   ↓
+RabbitMQ
+   ↓
+queue.pedido-entrega
+   ↓
+Microsserviço de Entrega
+```
+
+---
+
+# Eureka
+
+O serviço registra-se automaticamente no Eureka.
 
 Nome registrado:
 
 ```text
-sd-api-pedido
+SD-API-PEDIDO
 ```
 
-Eureka Server:
+Servidor Eureka:
 
 ```text
 http://localhost:8761
@@ -394,39 +444,123 @@ http://localhost:8761
 
 ---
 
-# Fluxo Completo
+# Endpoints
+
+## Criar Pedido
+
+```http
+POST /pedidos
+```
+
+Exemplo:
+
+```json
+{
+  "idCliente": 1,
+  "itens": [
+    {
+      "quantidade": 2,
+      "preco": 25.0,
+      "descricao": "Hambúrguer"
+    }
+  ]
+}
+```
+
+---
+
+## Atualizar Pedido
+
+```http
+PUT /pedidos/{id}
+```
+
+---
+
+## Efetuar Pagamento
+
+```http
+PUT /pedidos/{id}/pagar
+```
+
+---
+
+## Iniciar Preparo
+
+```http
+PUT /pedidos/{id}/iniciar-preparo
+```
+
+---
+
+## Finalizar Preparo
+
+```http
+PUT /pedidos/{id}/finalizar-preparo
+```
+
+---
+
+## Buscar Pedido
+
+```http
+GET /pedidos/{id}
+```
+
+---
+
+## Listar Pedidos
+
+```http
+GET /pedidos
+```
+
+---
+
+## Remover Pedido
+
+```http
+DELETE /pedidos/{id}
+```
+
+---
+
+# Fluxo Completo do Pedido
 
 ```text
-Criar Pedido
-      |
-      v
+Cliente
+   ↓
+POST /pedidos
+   ↓
 AGUARDANDO_PAGAMENTO
-      |
-      v
-Pagar Pedido
-      |
-      +--> PAGAMENTO_APROVADO
-      |
-      +--> PAGAMENTO_RECUSADO
-              |
-              v
-          Fim
-      |
-      v
-Iniciar Preparo
-      |
-      v
+   ↓
+PUT /pedidos/{id}/pagar
+   ↓
+PAGAMENTO_APROVADO
+   ↓
+PUT /pedidos/{id}/iniciar-preparo
+   ↓
 EM_PREPARO
-      |
-      v
-Finalizar Preparo
-      |
-      v
+   ↓
+PUT /pedidos/{id}/finalizar-preparo
+   ↓
 PRONTO_PARA_ENTREGA
-      |
-      v
+   ↓
 RabbitMQ
-      |
-      v
+   ↓
 Microsserviço de Entrega
 ```
+
+---
+
+# Tecnologias Utilizadas
+
+* Java 21
+* Spring Boot
+* Spring Data JPA
+* Spring Cloud Stream
+* RabbitMQ
+* gRPC
+* H2 Database
+* Eureka Discovery Server
+* Maven
