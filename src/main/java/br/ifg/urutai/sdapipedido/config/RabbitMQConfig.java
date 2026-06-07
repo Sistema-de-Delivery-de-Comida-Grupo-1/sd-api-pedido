@@ -7,7 +7,7 @@ import org.springframework.amqp.core.Queue;
 
 @Configuration
 public class RabbitMQConfig {
-    @Value("${app.queue-name}") // busca no application.yml :
+    @Value("${app.queue-name}")
     private String queueName;
     @Bean
     public Queue minhaFila() {

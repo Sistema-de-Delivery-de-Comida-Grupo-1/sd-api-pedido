@@ -1,9 +1,11 @@
 package br.ifg.urutai.sdapipedido.dto;
 
 import br.ifg.urutai.sdapipedido.model.StatusPedido;
+
+import java.io.Serializable;
 import java.util.List;
 
-public class PedidoResponseDTO {
+public class PedidoResponseDTO implements Serializable {
     private Long id;
     private Long idCliente;
     private double valorTotal;
