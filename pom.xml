@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>org.example</groupId>
 	<artifactId>sd-api-pedido</artifactId>
-	<version>1.1.0</version>
+	<version>1.2.0</version>
 	<name>sd-api-pedido</name>
 	<description>sd-api-pedido</description>
 	<url/>
