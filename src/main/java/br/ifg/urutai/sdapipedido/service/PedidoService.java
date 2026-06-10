@@ -1,20 +1,19 @@
 package br.ifg.urutai.sdapipedido.service;
-import br.ifg.urutai.sdapipedido.dto.PedidoCreteDTO;
-import br.ifg.urutai.sdapipedido.dto.PedidoResponseDTO;
+import br.ifg.urutai.sdapipedido.dto.*;
 import br.ifg.urutai.sdapipedido.model.ItemPedido;
 import br.ifg.urutai.sdapipedido.model.Pedido;
 import br.ifg.urutai.sdapipedido.model.StatusPedido;
 import br.ifg.urutai.sdapipedido.repository.PedidoRepository;
 import br.ifg.urutai.sdapipedido.util.DataMapper;
-import ifg.urutai.sdapipagamento.grpc.RequisicaoPagamento;
-import ifg.urutai.sdapipagamento.grpc.RespostaPagamento;
-import ifg.urutai.sdapipagamento.grpc.ServicoPagamentoGrpc;
+import ifg.urutai.sdapipagamento.grpc.*;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -23,14 +22,16 @@ import java.util.List;
 public class PedidoService {
 
     private final ServicoPagamentoGrpc.ServicoPagamentoBlockingStub stubPagamento;
+    private final UsuarioClient usuarioClient;
     private final RabbitTemplate rabbitTemplate;
     private final StreamBridge streamBridge;
     private final String queueName;
     private final PedidoRepository pedidoRepository;
 
     @Autowired
-    public PedidoService(ServicoPagamentoGrpc.ServicoPagamentoBlockingStub stubPagamento, RabbitTemplate rabbitTemplate, StreamBridge streamBridge, @Value("${app.queue-name}") String queueName, PedidoRepository pedidoRepository) {
+    public PedidoService(ServicoPagamentoGrpc.ServicoPagamentoBlockingStub stubPagamento, UsuarioClient usuarioCliient, RabbitTemplate rabbitTemplate, StreamBridge streamBridge, @Value("${app.queue-name}") String queueName, PedidoRepository pedidoRepository) {
         this.stubPagamento = stubPagamento;
+        this.usuarioClient = usuarioCliient;
         this.rabbitTemplate = rabbitTemplate;
         this.streamBridge = streamBridge;
         this.queueName = queueName;
@@ -44,6 +45,19 @@ public class PedidoService {
 
         if (pedido.getItens() == null || pedido.getItens().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O pedido deve possuir ao menos um item");
+        }
+
+        try {
+
+            UsuarioResumeDTO usuario = usuarioClient.buscarUsuario(pedidoDTO.getIdCliente());
+
+        } catch (HttpServerErrorException e) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Cliente não encontrado"
+            );
+
         }
 
         double valorTotal = pedido.getItens()
@@ -66,6 +80,18 @@ public class PedidoService {
         Pedido pedidoBanco = pedidoRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido não encontrado"));
 
         if (pedidoDTO.getIdCliente() != null) {
+            try {
+
+                UsuarioResumeDTO usuario = usuarioClient.buscarUsuario(pedidoDTO.getIdCliente());
+
+            } catch (HttpServerErrorException e) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Cliente não encontrado"
+                );
+
+            }
             pedidoBanco.setIdCliente(pedidoDTO.getIdCliente());
         }
 
@@ -160,6 +186,90 @@ public class PedidoService {
         rabbitTemplate.convertAndSend(queueName, pedidoSalvo);
 
         return DataMapper.parseObject(pedidoSalvo, PedidoResponseDTO.class);
+    }
+
+    public PedidoResponseDTO estornarPedido(Long id, String motivo) {
+
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Pedido não encontrado"));
+
+        if (pedido.getStatus() != StatusPedido.PAGAMENTO_APROVADO) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Somente pedidos pagos podem ser estornados");
+        }
+
+        RequisicaoEstorno requisicao =
+                RequisicaoEstorno.newBuilder()
+                        .setIdPedido(String.valueOf(pedido.getId()))
+                        .setMotivo(motivo)
+                        .build();
+
+        RespostaEstorno resposta =
+                stubPagamento.estornarPagamento(requisicao);
+
+        if ("ESTORNADO".equals(resposta.getStatus())) {
+
+            pedido.setStatus(StatusPedido.CANCELADO);
+
+            Pedido pedidoSalvo =
+                    pedidoRepository.save(pedido);
+
+            PedidoResponseDTO dto =
+                    DataMapper.parseObject(
+                            pedidoSalvo,
+                            PedidoResponseDTO.class);
+
+            streamBridge.send("sd-api-pedido", dto);
+
+            return dto;
+        }
+        throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                resposta.getMensagem());
+    }
+
+    public SaldoDTO consultarSaldo() {
+
+        RequisicaoSaldo requisicao =
+                RequisicaoSaldo.newBuilder()
+                        .build();
+
+        return DataMapper.parseObject(stubPagamento.consultarSaldo(requisicao), SaldoDTO.class);
+    }
+
+    public ListaTransacoesDTO listarTransacoes(
+            int pagina,
+            int tamanho) {
+
+        RespostaListaTransacoes resposta =
+                stubPagamento.listarTransacoes(
+                        RequisicaoListaTransacoes.newBuilder()
+                                .setPagina(pagina)
+                                .setTamanho(tamanho)
+                                .build()
+                );
+
+        List<TransacaoDTO> transacoes =
+                resposta.getTransacoesList()
+                        .stream()
+                        .map(t -> new TransacaoDTO(
+                                t.getIdTransacao(),
+                                t.getIdUsuario(),
+                                t.getIdPedido(),
+                                t.getValor(),
+                                t.getFormaPagamento(),
+                                t.getStatus(),
+                                t.getCriadoEm(),
+                                t.getEstornadoEm(),
+                                t.getMotivoEstorno()
+                        ))
+                        .toList();
+
+        return new ListaTransacoesDTO(transacoes, resposta.getTotalElementos());
     }
 
     public PedidoResponseDTO buscarPorId(Long id) {

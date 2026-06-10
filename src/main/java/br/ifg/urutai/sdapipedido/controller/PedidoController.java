@@ -1,7 +1,9 @@
 package br.ifg.urutai.sdapipedido.controller;
 
+import br.ifg.urutai.sdapipedido.dto.ListaTransacoesDTO;
 import br.ifg.urutai.sdapipedido.dto.PedidoCreteDTO;
 import br.ifg.urutai.sdapipedido.dto.PedidoResponseDTO;
+import br.ifg.urutai.sdapipedido.dto.SaldoDTO;
 import br.ifg.urutai.sdapipedido.service.PedidoService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,35 +21,55 @@ public class PedidoController {
     }
 
     @PostMapping
-    public ResponseEntity<PedidoResponseDTO> criarPedido(@RequestBody PedidoCreteDTO pedido) {
+    public ResponseEntity<PedidoResponseDTO> criarPedido(
+            @RequestBody PedidoCreteDTO pedido) {
+
         return ResponseEntity.ok(
                 pedidoService.criarPedido(pedido)
         );
     }
 
     @PutMapping("/{id}/pagar")
-    public ResponseEntity<PedidoResponseDTO> pagarPedido(@PathVariable Long id) {
+    public ResponseEntity<PedidoResponseDTO> pagarPedido(
+            @PathVariable Long id) {
+
         return ResponseEntity.ok(
                 pedidoService.pagarPedido(id)
         );
     }
 
+    @PutMapping("/{id}/estornar")
+    public ResponseEntity<PedidoResponseDTO> estornarPedido(
+            @PathVariable Long id,
+            @RequestParam String motivo) {
+
+        return ResponseEntity.ok(
+                pedidoService.estornarPedido(id, motivo)
+        );
+    }
+
     @PutMapping("/{id}/iniciar-preparo")
-    public ResponseEntity<PedidoResponseDTO> iniciarPreparo(@PathVariable Long id) {
+    public ResponseEntity<PedidoResponseDTO> iniciarPreparo(
+            @PathVariable Long id) {
+
         return ResponseEntity.ok(
                 pedidoService.iniciarPreparo(id)
         );
     }
 
     @PutMapping("/{id}/finalizar-preparo")
-    public ResponseEntity<PedidoResponseDTO> finalizarPreparo(@PathVariable Long id) {
+    public ResponseEntity<PedidoResponseDTO> finalizarPreparo(
+            @PathVariable Long id) {
+
         return ResponseEntity.ok(
                 pedidoService.finalizarPreparo(id)
         );
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PedidoResponseDTO> atualizar(@PathVariable Long id, @RequestBody PedidoCreteDTO pedido) {
+    public ResponseEntity<PedidoResponseDTO> atualizar(
+            @PathVariable Long id,
+            @RequestBody PedidoCreteDTO pedido) {
 
         return ResponseEntity.ok(
                 pedidoService.atualizar(id, pedido)
@@ -55,7 +77,9 @@ public class PedidoController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PedidoResponseDTO> buscarPorId(@PathVariable Long id) {
+    public ResponseEntity<PedidoResponseDTO> buscarPorId(
+            @PathVariable Long id) {
+
         return ResponseEntity.ok(
                 pedidoService.buscarPorId(id)
         );
@@ -63,16 +87,39 @@ public class PedidoController {
 
     @GetMapping
     public ResponseEntity<List<PedidoResponseDTO>> listarTodos() {
+
         return ResponseEntity.ok(
                 pedidoService.busarTodos()
         );
     }
 
+    @GetMapping("/pagamentos/saldo")
+    public ResponseEntity<SaldoDTO> consultarSaldo() {
 
+        return ResponseEntity.ok(
+                pedidoService.consultarSaldo()
+        );
+    }
+
+    @GetMapping("/pagamentos/transacoes")
+    public ResponseEntity<ListaTransacoesDTO> listarTransacoes(
+            @RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "10") int tamanho) {
+
+        return ResponseEntity.ok(
+                pedidoService.listarTransacoes(
+                        pagina,
+                        tamanho
+                )
+        );
+    }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> remover(@PathVariable Long id) {
+    public ResponseEntity<Void> remover(
+            @PathVariable Long id) {
+
         pedidoService.remover(id);
+
         return ResponseEntity.noContent().build();
     }
 }
