@@ -21,7 +21,7 @@ import java.util.List;
 @Service
 public class PedidoService {
 
-    private final ServicoPagamentoGrpc.ServicoPagamentoBlockingStub stubPagamento;
+    private final PagamentoGrpcClient pagamentoGrpcClient;
     private final UsuarioClient usuarioClient;
     private final RabbitTemplate rabbitTemplate;
     private final StreamBridge streamBridge;
@@ -29,8 +29,8 @@ public class PedidoService {
     private final PedidoRepository pedidoRepository;
 
     @Autowired
-    public PedidoService(ServicoPagamentoGrpc.ServicoPagamentoBlockingStub stubPagamento, UsuarioClient usuarioCliient, RabbitTemplate rabbitTemplate, StreamBridge streamBridge, @Value("${app.queue-name}") String queueName, PedidoRepository pedidoRepository) {
-        this.stubPagamento = stubPagamento;
+    public PedidoService(PagamentoGrpcClient pagamentoGrpcClient, UsuarioClient usuarioCliient, RabbitTemplate rabbitTemplate, StreamBridge streamBridge, @Value("${app.queue-name}") String queueName, PedidoRepository pedidoRepository) {
+        this.pagamentoGrpcClient = pagamentoGrpcClient;
         this.usuarioClient = usuarioCliient;
         this.rabbitTemplate = rabbitTemplate;
         this.streamBridge = streamBridge;
@@ -140,7 +140,10 @@ public class PedidoService {
                         .setFormaPagamento("PIX")
                         .build();
 
-        RespostaPagamento resposta = stubPagamento.processarPagamento(requisicao);
+        RespostaPagamento resposta =
+                pagamentoGrpcClient
+                        .getStub()
+                        .processarPagamento(requisicao);
 
         if ("SUCESSO".equals(resposta.getStatus())) {
             pedido.setStatus(StatusPedido.PAGAMENTO_APROVADO);
@@ -208,8 +211,9 @@ public class PedidoService {
                         .setMotivo(motivo)
                         .build();
 
-        RespostaEstorno resposta =
-                stubPagamento.estornarPagamento(requisicao);
+        RespostaEstorno resposta = pagamentoGrpcClient
+                .getStub()
+                .estornarPagamento(requisicao);
 
         if ("ESTORNADO".equals(resposta.getStatus())) {
 
@@ -238,15 +242,16 @@ public class PedidoService {
                 RequisicaoSaldo.newBuilder()
                         .build();
 
-        return DataMapper.parseObject(stubPagamento.consultarSaldo(requisicao), SaldoDTO.class);
+        return DataMapper.parseObject(pagamentoGrpcClient
+                .getStub()
+                .consultarSaldo(requisicao), SaldoDTO.class);
     }
 
     public ListaTransacoesDTO listarTransacoes(
             int pagina,
             int tamanho) {
 
-        RespostaListaTransacoes resposta =
-                stubPagamento.listarTransacoes(
+        RespostaListaTransacoes resposta = pagamentoGrpcClient.getStub().listarTransacoes(
                         RequisicaoListaTransacoes.newBuilder()
                                 .setPagina(pagina)
                                 .setTamanho(tamanho)

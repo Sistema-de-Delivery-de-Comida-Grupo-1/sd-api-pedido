@@ -11,6 +11,6 @@ public class RabbitMQConfig {
     private String queueName;
     @Bean
     public Queue minhaFila() {
-        return new Queue(queueName, true); // fila durável
+        return new Queue(queueName, true);
     }
 }
